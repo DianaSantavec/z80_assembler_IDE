@@ -1,1 +1,3 @@
-gcc `pkg-config gtk+-2.0 --cflags` -I/home/dianas/Documents/z80IDE window.c -o window `pkg-config gtk+-2.0 --libs`
+gcc -g -Wall -ggdb `pkg-config gtk+-2.0 --cflags` -I/home/dianas/Documents/z80IDE window.c -o window `pkg-config gtk+-2.0 --libs`
+// -g da bi gdb pronasao simbole
+//-Wall -ggdb za lakse debagovanje
