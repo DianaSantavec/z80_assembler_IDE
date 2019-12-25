@@ -20,15 +20,20 @@ public:
     void newFile();
     void openFile();
     bool saveFile_menu();
-    void nesto();
+    bool save_as();
     bool saveFile(const QString &fileName);
+
     void Exit();
     void cut();
     void copy();
     void paste();
     void help();
     void loadFile(const QString &fileName);
+    void assemble();
+    void assemble_function();
 
+    //QString file_path_qt;
+    char* file_path;
     QString curFile;
 
 private:
@@ -38,5 +43,7 @@ private:
     void setCurrentFile (const QString &fileName);
 
 
+protected:
+    void closeEvent(QCloseEvent *event) override;
 };
 #endif // MAINWINDOW_H
