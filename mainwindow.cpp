@@ -11,6 +11,7 @@
 #include <iostream>
 #include <unistd.h>
 #include <QCloseEvent>
+#include <QShortcut>
 
 
 #include <cstdio>
@@ -25,6 +26,7 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
     create_menubar();
+    setupEditor();
     setCurrentFile(QString());
 
 }
@@ -35,18 +37,6 @@ MainWindow::~MainWindow()
 
 }
 void MainWindow::closeEvent (QCloseEvent *event){
-   /* if (!is_saved()){
-        QMessageBox::StandardButton resBtn = QMessageBox::question( this, "Z80IDE", tr("Changes aren't saved\n Are you sure you want to quit editor?\n"), QMessageBox::Cancel | QMessageBox::No | QMessageBox::Yes, QMessageBox::Yes);
-        if (resBtn != QMessageBox::Yes) {
-            event->ignore();
-        }
-        else {
-            event->accept();
-        }
-    }
-    else{
-        event->accept();
-    }*/
     if (is_saved()){
         event->accept();
     }
@@ -76,20 +66,31 @@ void MainWindow::create_menubar(){
    connect(save_action,&QAction::triggered,this, &MainWindow::saveFile_menu);
    fileMenu->addAction(save_action);
 
+   QAction *save_as_action = new QAction(tr("&Save As..."), this);
+   save_as_action->setShortcuts(QKeySequence::SaveAs);
+   save_as_action->setStatusTip(tr("Save file as..."));
+   connect(save_as_action,&QAction::triggered,this, &MainWindow::save_as);
+   fileMenu->addAction(save_as_action);
+
    QAction *exit_action = new QAction(tr("&Quit"),this);
    exit_action->setShortcuts(QKeySequence::Quit);
    exit_action->setStatusTip(tr("Exit editor"));
    connect(exit_action,&QAction::triggered,this,&MainWindow::Exit);
    fileMenu->addAction(exit_action);
-/*
-    QAction *exit_action = new QAction(tr("&Quit"),this);
-    exit_action->setShortcuts(QKeySequence::Quit);
-    exit_action->setStatusTip(tr("Exit"));
-    connect(exit_action, &QAction::trigger,this,&MainWindow::Exit);//&MainWindow::Exit);
-    fileMenu->addAction(exit_action);*/
 
+   QMenu *editMenu = menuBar()->addMenu(tr("&Edit"));
 
-    QMenu *editMenu = menuBar()->addMenu(tr("&Edit"));
+   QAction *undo_action = new QAction(tr("&Undo"),this);
+   undo_action->setShortcuts(QKeySequence::Undo);
+   undo_action->setStatusTip(tr("Undo changes"));
+   connect(undo_action,&QAction::triggered, this, &MainWindow::undo);
+   editMenu->addAction(undo_action);
+
+   QAction *redo_action = new QAction(tr("&Redo"),this);
+   redo_action->setShortcuts(QKeySequence::Redo);
+   redo_action->setStatusTip(tr("Undo changes"));
+   connect(redo_action,&QAction::triggered, this, &MainWindow::redo);
+   editMenu->addAction(redo_action);
 
     QAction *cut_action = new QAction(tr("&Cut"), this);
     cut_action->setShortcuts(QKeySequence::Cut);
@@ -109,13 +110,15 @@ void MainWindow::create_menubar(){
     connect(paste_action, &QAction::triggered, this, &MainWindow::paste);
     editMenu->addAction(paste_action);
 
+
     QMenu *assembleMenu = menuBar()->addMenu(tr("&Assemble"));
 
     QAction *assemble_action = new QAction(tr("&Assemble"), this);
-    assemble_action->setShortcuts(QKeySequence::HelpContents);
+    assemble_action->setShortcut(QKeySequence(Qt::Key_F5));
     assemble_action->setStatusTip(tr("Create a new file"));
     connect(assemble_action, &QAction::triggered, this, &MainWindow::assemble);
     assembleMenu->addAction(assemble_action);
+
 
     QMenu *aboutMenu = menuBar()->addMenu(tr("&About"));
 
@@ -124,13 +127,6 @@ void MainWindow::create_menubar(){
     help_action->setStatusTip(tr("Create a new file"));
     connect(help_action, &QAction::triggered, this, &MainWindow::help);
     aboutMenu->addAction(help_action);
-/*
-#ifndef QT_NO_CLIPBOARD
-    cut_action->setEnabled(false);
-    copy_action->setEnabled(false);
-    connect(ui->mainTextEdit, &QPlainTextEdit::copyAvailable, cut_action, &QAction::setEnabled);
-    connect(ui->mainTextEdit, &QPlainTextEdit::copyAvailable, copy_action, &QAction::setEnabled);
-#endif // !QT_NO_CLIPBOARD*/
 }
 
 void MainWindow::newFile(){
@@ -150,13 +146,12 @@ void MainWindow::openFile(){
 }
 
 bool MainWindow::saveFile_menu(){
-
-    //if (curFile.isEmpty()) {
-           return save_as();
-    //   } else {
-    //    return saveFile(dialog.selectedFiles().first());
-           //return saveFile(curFile);
-     //  }
+    if (curent_file.isEmpty()){
+       return save_as();
+    }
+    else {
+        return saveFile(curent_file);
+    }
 }
 
 bool MainWindow::save_as()
@@ -168,14 +163,12 @@ bool MainWindow::save_as()
         return false;
     QString file_path_string = dialog.selectedFiles().first();
 
-    //QByteArray ba = file_path_string.toUtf8().data();
-    //file_path = file_path_string.toUtf8().data();
     file_path = new char[file_path_string.length() + 1];
     strcpy(file_path, file_path_string.toLatin1().constData());
 
-    //file_path = dialog.selectedFiles().first();
     return saveFile(dialog.selectedFiles().first());
 }
+
 
 bool MainWindow::saveFile(const QString &fileName){
 
@@ -187,13 +180,11 @@ bool MainWindow::saveFile(const QString &fileName){
         QTextStream out(&file);
         out << ui->mainTextEdit->toPlainText();
         if (!file.commit()) {
-            errorMessage = tr("Cannot write file %1:\n%2.")
-                    .arg(QDir::toNativeSeparators(fileName), file.errorString());
+            errorMessage = tr("Cannot write file %1:\n%2.") .arg(QDir::toNativeSeparators(fileName), file.errorString());
         }
     }
     else {
-        errorMessage = tr("Cannot open file %1 for writing:\n%2.")
-                .arg(QDir::toNativeSeparators(fileName), file.errorString());
+        errorMessage = tr("Cannot open file %1 for writing:\n%2.") .arg(QDir::toNativeSeparators(fileName), file.errorString());
     }
 
     QGuiApplication::restoreOverrideCursor();
@@ -210,6 +201,24 @@ bool MainWindow::saveFile(const QString &fileName){
 
 void MainWindow::Exit(){
     MainWindow::close();
+}
+
+void MainWindow::undo(){
+    QWidget *focused = QApplication::focusWidget();
+    QApplication::postEvent(focused,new QKeyEvent(QKeyEvent::KeyPress, Qt::Key_Z,Qt::ControlModifier));
+    QApplication::postEvent(focused,new QKeyEvent(QKeyEvent::KeyRelease, Qt::Key_Z,Qt::ControlModifier));
+}
+
+void MainWindow::redo(){
+    QWidget *focused = QApplication::focusWidget();
+    QApplication::postEvent(focused,new QKeyEvent(QKeyEvent::KeyPress, Qt::Key_Z,Qt::ShiftModifier | Qt::ControlModifier));
+    QApplication::postEvent(focused,new QKeyEvent(QKeyEvent::KeyRelease, Qt::Key_Z,Qt::ShiftModifier | Qt::ControlModifier));
+    //Qt::Modifier *modifiers =
+    //QKeyEvent redo_event = new QKeyEvent(QEvent::KeyPress,Qt::Key_0,*modifiers);
+    //QKeyEvent redo_event = new QKeyEvent();
+    //QApplication::postEvent(focused,new QKeyEvent(redo_event));
+    /*Qt::KeyboardModifier modifiers = new Qt::KeyboardModifiers(Qt::ControlModifier, Qt::AltModifier);
+    QApplication::postEvent(focused,new QKeyEvent(QKeyEvent::KeyPress, Qt::Key_Z,Qt::ControlModifier,));*/
 }
 
 void MainWindow::cut(){
@@ -246,7 +255,7 @@ bool MainWindow::is_saved(){
 
     switch (ret) {
         case QMessageBox::Save:
-            return saveFile(curFile);
+            return saveFile(curent_file);
         case QMessageBox::Cancel:
             return false;
         default:
@@ -256,12 +265,12 @@ bool MainWindow::is_saved(){
 }
 
 void MainWindow::setCurrentFile(const QString &fileName){
-    curFile = fileName;
+    curent_file = fileName;
     ui->mainTextEdit->document()->setModified(false);
     setWindowModified(false);
 
-    QString shownName = curFile;
-    if (curFile.isEmpty())
+    QString shownName = curent_file;
+    if (curent_file.isEmpty())
         shownName = "untitled.txt";
     setWindowFilePath(shownName);
 }
@@ -270,9 +279,7 @@ void MainWindow::loadFile(const QString &fileName)
 {
     QFile file(fileName);
     if (!file.open(QFile::ReadOnly | QFile::Text)) {
-        QMessageBox::warning(this, tr("Application"),
-                             tr("Cannot read file %1:\n%2.")
-                             .arg(QDir::toNativeSeparators(fileName), file.errorString()));
+        QMessageBox::warning(this, tr("Application"), tr("Cannot read file %1:\n%2.") .arg(QDir::toNativeSeparators(fileName), file.errorString()));
         return;
     }
 
@@ -294,8 +301,6 @@ void MainWindow::assemble(){
 }
 
 void MainWindow::assemble_function(){
-    //char* bash=  "/home/dianas/Documents/z80IDE/assemble.sh ";
-    //char* my_string = bash + file_path;
     std::string bash_command = std::string() + "/home/dianas/Documents/z80IDE/assemble.sh " + file_path;
     const char *c_bash_command = bash_command.c_str();
     std::array<char,250> buffer;
@@ -309,53 +314,24 @@ void MainWindow::assemble_function(){
             errors_string += buffer.data();
         }
 
-    /*QMessageBox msgBox;
-    msgBox.setText(errors_string);
-    msgBox.exec();*/
-     QString error_string_qt = QString::fromStdString(errors_string);
+    QString error_string_qt = QString::fromStdString(errors_string);
     ui->errorTextEdit->setPlainText(error_string_qt);
+}
 
+void MainWindow::setupEditor()
+{
+    QFont font;
+    font.setFamily("Courier");
+    font.setFixedPitch(true);
+    font.setPointSize(10);
 
-    /*const char * final_command = bash_command.c_str();
-    std::system(final_command);
-    }*/
+    ui->mainTextEdit->setFont(font);
+    //editor = new QTextEdit;
+    //editor->setFont(font);
 
-    /*
-     *  std::array<char, 128> buffer;
-    std::string result;
-    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
-    if (!pipe) {
-        throw std::runtime_error("popen() failed!");
-    }
-    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
-        result += buffer.data();
-    }
-    return result;
-    */
+    highlighter = new Highlighter(ui->mainTextEdit->document());
 
-    /*std::ofstream temp_file_out;
-    temp_file_out.open("/home/dianas/temp.txt");
-    QMessageBox msgBox;
-    msgBox.setText(file_path);
-    msgBox.exec();
-    temp_file_out << file_path << endl;
-    temp_file_out.close();
-
-    system("/home/dianas/Documents/z80IDE/assemble.sh");
-    usleep(2000);
-
-    char errors[250];
-
-    std::ifstream temp_file_in;
-    temp_file_in.open("/home/dianas/temp.txt");
-    temp_file_in >> errors;
-    std::cout << errors;
-    ui->errorTextEdit->setPlainText(errors);*/
-
-
-    //sprintf(command, "%s %s", "/home/dianas/Documents/z80IDE/assemble.sh", file_path);
-    //system(command);
-    //system("/home/dianas/Documents/z80IDE/assemble.sh");
-    //std::string script = "";
-    //std::system(script + " " + file_path);
+    QFile file("mainwindow.h");
+    if (file.open(QFile::ReadOnly | QFile::Text))
+        ui->mainTextEdit->setPlainText(file.readAll());
 }

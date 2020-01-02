@@ -3,6 +3,8 @@
 
 #include <QMainWindow>
 #include <QPlainTextEdit>
+#include "highlighter.h"
+#include <QShortcut>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -24,6 +26,8 @@ public:
     bool saveFile(const QString &fileName);
 
     void Exit();
+    void undo();
+    void redo();
     void cut();
     void copy();
     void paste();
@@ -34,13 +38,17 @@ public:
 
     //QString file_path_qt;
     char* file_path;
-    QString curFile;
+    QString curent_file;
+    Highlighter *highlighter;
+    //const QKeySequence start_assemble = QKeySequence(tr("F5"));
+    //new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_Q), this, SLOT(close()));
 
 private:
     Ui::MainWindow *ui;
 
     bool is_saved();
     void setCurrentFile (const QString &fileName);
+    void setupEditor();
 
 
 protected:

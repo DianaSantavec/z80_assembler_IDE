@@ -10,7 +10,7 @@ int main(int argc, char *argv[])
 
 
     w.loadFile("/home/dianas/test1.asm");
-    w.curFile = "new1";
+    w.curent_file = "/home/dianas/test1.asm";
 
     w.show();
     return a.exec();
